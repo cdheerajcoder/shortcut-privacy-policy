@@ -80,24 +80,48 @@
 
   <h2>1. Information Stored on Your Device</h2>
   <p>
-    SHORTCUT stores configuration information in Chrome extension storage so
-    that you do not need to enter your preferences each time. Depending on
-    which features you use, this can include:
+    SHORTCUT stores configuration and interface state in Chrome extension storage
+    and extension-origin browser storage so that you do not need to re-enter
+    your preferences each time:
   </p>
   <ul>
-    <li>Your chosen nickname.</li>
-    <li>Your KL University student ID and ERP password, if you choose to save them.</li>
-    <li>Your selected academic year and semester.</li>
-    <li>A preference recording whether you dismissed the first-use companion card.</li>
-    <li>Temporary session information used to coordinate an active ERP workflow.</li>
+    <li>
+      <strong>shortcutConfig (<code>chrome.storage.local</code>):</strong> Stores your chosen
+      nickname (for popup greetings), KL University student ID, ERP password,
+      and selected academic year and semester.
+    </li>
+    <li>
+      <strong>shortcut_companion_dismissed (<code>chrome.storage.local</code>):</strong> A boolean
+      preference recording whether you dismissed the first-use KLU ERP Captcha Auto-Fill companion card
+      so it does not repeatedly appear in the setup interface.
+    </li>
+    <li>
+      <strong>shortcut_feedback_last_submitted (extension <code>localStorage</code>):</strong> A timestamp
+      in milliseconds recording when feedback was last submitted, stored in the extension popup's own origin
+      <code>localStorage</code> to present a client-side 10-minute cooldown hint between submissions.
+    </li>
+    <li>
+      <strong>Session State (<code>chrome.storage.session</code>):</strong> Temporary credentials
+      and workflow state cached strictly during an active browser session to coordinate automated navigation
+      across verified ERP tabs.
+    </li>
   </ul>
   <p>
     Saved configuration is stored using Chrome's extension storage APIs,
-    including <code>chrome.storage.local</code>. Active workflow information
-    may also be held in <code>chrome.storage.session</code>. These stored
-    credentials are not encrypted by SHORTCUT itself. Access to the local
+    including <code>chrome.storage.local</code>. These stored credentials are not
+    encrypted by SHORTCUT itself within your Chrome profile. Access to the local
     Chrome profile and the security of your device are therefore important.
     Do not save your password on a device you do not trust.
+  </p>
+  <p>
+    <strong>Clear Saved Configuration:</strong> In <strong>Settings</strong>, clicking
+    <strong>Clear Saved Configuration</strong> removes only <code>shortcutConfig</code> from
+    <code>chrome.storage.local</code> and <code>credentials</code> and
+    <code>activeAttendanceTabId</code> from <code>chrome.storage.session</code>. It does not
+    clear all session state or interface values: <code>shortcut_companion_dismissed</code> in
+    <code>chrome.storage.local</code>, <code>shortcut_feedback_last_submitted</code> in
+    extension <code>localStorage</code>, and tab routing state (such as <code>activeFlowTabs</code>)
+    are not removed by this action.
   </p>
 
   <h2>2. How ERP Login and Navigation Work</h2>
@@ -128,41 +152,57 @@
 
   <h2>3. Optional Feedback and Firebase</h2>
   <p>
-    If you choose to submit feedback, SHORTCUT uses Firebase Authentication
-    and Cloud Firestore to process and store your submission. Firebase
-    Anonymous Authentication is used to associate the submission with an
-    anonymous Firebase user identifier; you are not asked to provide your
-    university login credentials for this feature.
+    Submitting feedback is entirely voluntary. If you choose to submit feedback
+    or feature suggestions, SHORTCUT uses Firebase Anonymous Authentication and Cloud
+    Firestore within the <code>shortcut-feedback</code> project:
   </p>
-  <p>Feedback may include:</p>
   <ul>
-    <li>A rating you select.</li>
-    <li>Your written review or comments.</li>
-    <li>An optional feature idea or suggestion.</li>
-    <li>A server-generated submission timestamp and technical identifiers used to manage submissions.</li>
+    <li>
+      <strong>Feedback Document (<code>/feedback</code>):</strong> Stores your rating
+      (integer 0–10), written review (up to 2,000 characters), optional feature idea
+      (up to 1,000 characters), and a server-generated Firestore submission timestamp.
+      The feedback document itself does not contain your university credentials, personal
+      identity, or user ID.
+    </li>
+    <li>
+      <strong>Rate-Limit Document (<code>/feedbackRateLimits</code>):</strong> Stores an
+      anonymous Firebase user identifier (UID) as the document key, a submission
+      timestamp, and a feedback document reference for rate-limit and cooldown handling.
+      Actual server-side cooldown enforcement depends on deployed Firebase security rules.
+    </li>
   </ul>
   <p>
     Feedback is sent to Google's Firebase services for storage and for the
     developer to review, respond to product issues, and improve SHORTCUT.
-    Feedback records may be retained indefinitely unless they are deleted
-    through the relevant administrative process.
+    Feedback records may be retained indefinitely.
   </p>
   <p>
-    The extension also uses a browser-local timestamp to provide a cooldown
-    message after a feedback submission. Server-side cooldown enforcement
-    depends on the Firebase security rules deployed to the live project. We
-    do not represent the deployment status of those rules as verified by
-    this policy.
+    The extension also uses a timestamp stored in the extension popup's origin
+    <code>localStorage</code> to display a client-side 10-minute cooldown hint. Server-side
+    cooldown enforcement depends on the Firebase security rules deployed to the live project;
+    we do not represent the deployment status of those rules as verified by this policy.
   </p>
 
   <h2>4. Browser Storage Used for Preferences</h2>
   <p>
-    In addition to saved configuration and session information, SHORTCUT may
-    store small pieces of interface state, such as the first-use companion
-    card dismissal flag in Chrome extension storage and a local feedback
-    cooldown timestamp in browser local storage. These values support the
-    extension's user interface and are not intended to identify you outside
-    the extension.
+    In addition to saved configuration and session information, SHORTCUT stores
+    small pieces of interface state:
+  </p>
+  <ul>
+    <li>
+      <strong>First-use companion dismissal:</strong> Stored as <code>shortcut_companion_dismissed</code>
+      in <code>chrome.storage.local</code> so the KLU ERP Captcha companion card does not repeatedly
+      appear in the setup interface.
+    </li>
+    <li>
+      <strong>Feedback cooldown timestamp:</strong> Stored as <code>shortcut_feedback_last_submitted</code>
+      in the extension popup's own origin <code>localStorage</code> (isolated under the extension's
+      unique origin, not on the university ERP website).
+    </li>
+  </ul>
+  <p>
+    These values support the extension's user interface, are stored under the extension's own origin,
+    and are not directly accessible to the university ERP website through its origin.
   </p>
 
   <h2>5. Sharing and Disclosure</h2>
@@ -183,16 +223,27 @@
 
   <h2>6. Data Retention and Deletion</h2>
   <p>
-    Configuration remains in Chrome extension storage until you change it,
-    clear it, or uninstall the extension. Temporary session information is
-    intended for active workflows and is managed by the extension's session
-    cleanup behavior.
+    Saved credentials remain in Chrome extension storage until you edit them or
+    clear them in <strong>Settings</strong> via <strong>Clear Saved Configuration</strong>.
+    As described above, clearing saved configuration removes only <code>shortcutConfig</code> from
+    <code>chrome.storage.local</code> and <code>credentials</code> and <code>activeAttendanceTabId</code>
+    from <code>chrome.storage.session</code>, while <code>shortcut_companion_dismissed</code>,
+    <code>shortcut_feedback_last_submitted</code>, and tab routing state remain stored locally.
   </p>
   <p>
-    Feedback submitted to Firebase may remain stored until deleted by the
-    project administrator. To ask about a feedback record or request its
-    deletion, contact the developer using the contact details below. Please
-    do not email your ERP password or other login secrets.
+    When you uninstall SHORTCUT, Chrome automatically deletes the extension's own stored data
+    (including <code>chrome.storage.local</code>, <code>chrome.storage.session</code>, and
+    extension-origin <code>localStorage</code>). However, uninstalling the extension does
+    <strong>not</strong> delete cookies or session data on the university ERP portal
+    (<code>https://newerp.kluniversity.in/</code>), nor does it delete feedback already stored
+    remotely in Firebase Cloud Firestore.
+  </p>
+  <p>
+    Feedback submitted to Firebase may be retained indefinitely for product improvement.
+    Users may contact the developer at <a href="mailto:smartboy.kpcsmart@gmail.com">smartboy.kpcsmart@gmail.com</a>
+    to request deletion of a feedback submission, but fulfillment of deletion requests is not
+    guaranteed and no specific deletion process has been verified. Please do not email your ERP
+    password or other login secrets.
   </p>
 
   <h2>7. Security</h2>
